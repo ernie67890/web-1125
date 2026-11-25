@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可愛動物互動時鐘</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入圓潤可愛的中英文字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 Tone.js 製作可愛的滴答與切換音效 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Zen Maru Gothic"', '"Fredoka"', 'sans-serif'],
+                        num: ['"Fredoka"', '"Zen Maru Gothic"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen w-full flex flex-col items-center justify-center p-4 transition-colors duration-700 select-none overflow-x-hidden bg-amber-50 text-amber-900" id="app-body">
+
+    <!-- 背景裝飾漂浮雲朵/愛心 (純 Tailwind 裝飾) -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div id="deco-1" class="absolute top-10 left-10 w-24 h-24 rounded-full bg-white/60 blur-sm transition-all duration-700 animate-bounce" style="animation-duration: 4s;"></div>
+        <div id="deco-2" class="absolute bottom-16 right-12 w-32 h-32 rounded-full bg-white/60 blur-sm transition-all duration-700 animate-bounce" style="animation-duration: 5s;"></div>
+        <div id="deco-3" class="absolute top-1/3 right-1/4 w-16 h-16 rounded-full bg-white/50 blur-sm transition-all duration-700 animate-pulse"></div>
+    </div>
+
+    <!-- 主容器卡片 -->
+    <main class="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center border-4 transition-colors duration-500 border-amber-200" id="main-card">
+        
+        <!-- 頂部問候語與狀態列 -->
+        <div class="w-full flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-colors duration-500 bg-amber-100 text-amber-800" id="greeting-badge">
+                <span id="greeting-icon">☀️</span>
+                <span id="greeting-text">早安呀！</span>
+            </div>
+
+            <!-- 音效開關按鈕 -->
+            <button id="sound-toggle" class="p-2.5 rounded-full transition-all duration-300 active:scale-90 shadow-sm bg-amber-100 hover:bg-amber-200 text-amber-800" title="開啟/關閉滴答音效">
+                <!-- 靜音圖示 (預設靜音，需使用者點擊啟動 AudioContext) -->
+                <svg id="icon-sound-off" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+                <!-- 開啟音效圖示 -->
+                <svg id="icon-sound-on" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- 可愛動物耳朵與時鐘本體區塊 -->
+        <div class="relative w-64 h-64 sm:w-72 sm:h-72 mt-6 mb-6 flex items-center justify-center cursor-pointer group" id="clock-container" title="點點我看看！">
+            
+            <!-- 動物耳朵 SVG (會隨主題切換) -->
+            <div id="ears-container" class="absolute inset-0 -top-8 pointer-events-none transition-transform duration-300 group-hover:scale-105">
+                <!-- 預設小熊耳朵 -->
+                <svg viewBox="0 0 300 300" class="w-full h-full overflow-visible">
+                    <!-- 左耳 -->
+                    <circle cx="65" cy="60" r="38" fill="#D97706" class="transition-colors duration-500" id="ear-left-outer"/>
+                    <circle cx="65" cy="60" r="22" fill="#FDE68A" class="transition-colors duration-500" id="ear-left-inner"/>
+                    <!-- 右耳 -->
+                    <circle cx="235" cy="60" r="38" fill="#D97706" class="transition-colors duration-500" id="ear-right-outer"/>
+                    <circle cx="235" cy="60" r="22" fill="#FDE68A" class="transition-colors duration-500" id="ear-right-inner"/>
+                </svg>
+            </div>
+
+            <!-- 時鐘外框與錶盤 -->
+            <div id="clock-face" class="relative w-full h-full rounded-full bg-white border-[10px] border-amber-400 shadow-inner flex items-center justify-center transition-colors duration-500">
+                
+                <!-- 可愛腮紅 -->
+                <div class="absolute left-7 top-1/2 mt-3 w-7 h-4 rounded-full bg-rose-300/60 blur-[1px] transition-opacity duration-300" id="blush-left"></div>
+                <div class="absolute right-7 top-1/2 mt-3 w-7 h-4 rounded-full bg-rose-300/60 blur-[1px] transition-opacity duration-300" id="blush-right"></div>
+
+                <!-- 可愛小嘴巴/鼻子表情 (在中心點下方) -->
+                <div id="cute-face" class="absolute top-1/2 mt-4 flex flex-col items-center pointer-events-none transition-transform duration-200">
+                    <!-- 小鼻子 -->
+                    <div id="cute-nose" class="w-3.5 h-2.5 rounded-full bg-amber-800 transition-colors duration-500"></div>
+                    <!-- 微笑嘴巴 SVG -->
+                    <svg width="28" height="14" viewBox="0 0 28 14" class="-mt-0.5">
+                        <path id="cute-mouth" d="M 4 4 Q 9 11 14 4 Q 19 11 24 4" fill="none" stroke="#92400E" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <!-- 刻度與數字容器 (由 JS 動態生成) -->
+                <div id="clock-markings" class="absolute inset-0 w-full h-full pointer-events-none"></div>
+
+                <!-- 時針 -->
+                <div id="hour-hand" class="absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-2.5 h-16 sm:h-20 rounded-full bg-amber-800 shadow-sm transition-colors duration-500 z-10"></div>
+
+                <!-- 分針 -->
+                <div id="minute-hand" class="absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-2 h-24 sm:h-28 rounded-full bg-amber-600 shadow-sm transition-colors duration-500 z-20"></div>
+
+                <!-- 秒針 -->
+                <div id="second-hand" class="absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-1 h-28 sm:h-32 rounded-full bg-rose-500 z-30">
+                    <!-- 秒針尾端裝飾小圓點 -->
+                    <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                </div>
+
+                <!-- 中心固定圓點 -->
+                <div id="center-dot" class="absolute w-4 h-4 rounded-full bg-amber-400 border-2 border-white shadow z-40 transition-colors duration-500"></div>
+            </div>
+        </div>
+
+        <!-- 數位時間與日期顯示區 -->
+        <div class="w-full flex flex-col items-center bg-amber-50/80 rounded-3xl p-4 mb-5 border-2 border-amber-100 transition-colors duration-500" id="digital-box">
+            <div class="flex items-baseline gap-2">
+                <span id="ampm-label" class="text-sm font-bold px-2 py-0.5 rounded-lg bg-amber-200/70 text-amber-800 hidden">AM</span>
+                <div id="digital-time" class="font-num text-4xl sm:text-5xl font-bold tracking-wider text-amber-900 transition-colors duration-500">
+                    12:00:00
+                </div>
+            </div>
+            <div id="date-display" class="mt-1.5 text-sm sm:text-base font-bold text-amber-700/80 transition-colors duration-500">
+                2026年 11月 25日 星期三
+            </div>
+        </div>
+
+        <!-- 底部控制列：主題切換 & 12/24小時制切換 -->
+        <div class="w-full flex flex-wrap items-center justify-between gap-3">
+            <!-- 動物主題選擇器 -->
+            <div class="flex items-center gap-2 bg-gray-100/80 p-1.5 rounded-2xl">
+                <button data-theme="bear" class="theme-btn px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-all duration-300 bg-white shadow-sm text-amber-800 scale-105">
+                    <span>🐻</span><span>小熊</span>
+                </button>
+                <button data-theme="bunny" class="theme-btn px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-all duration-300 text-gray-500 hover:text-pink-600">
+                    <span>🐰</span><span>小兔</span>
+                </button>
+                <button data-theme="cat" class="theme-btn px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-all duration-300 text-gray-500 hover:text-sky-600">
+                    <span>🐱</span><span>小貓</span>
+                </button>
+            </div>
+
+            <!-- 12 / 24 小時制切換按鈕 -->
+            <button id="format-toggle" class="px-4 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 active:scale-95 bg-amber-100 hover:bg-amber-200 text-amber-800 shadow-sm">
+                24小時制
+            </button>
+        </div>
+
+    </main>
+
+    <!-- 提示訊息氣泡 (取代 alert) -->
+    <div id="toast-msg" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-full bg-gray-800/90 text-white text-sm font-bold shadow-lg opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4 z-50">
+        已開啟可愛滴答聲 ♪
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 狀態與主題設定資料
+        // ==========================================
+        let is24Hour = true;
+        let isSoundOn = false;
+        let currentTheme = 'bear';
+        let lastSecond = -1;
+        let tickSynth = null;
+        let popSynth = null;
+
+        // 動物主題配色與 SVG 耳朵設定
+        const themes = {
+            bear: {
+                name: '焦糖小熊',
+                bodyBg: 'bg-amber-50 text-amber-900',
+                cardBorder: 'border-amber-200',
+                badgeBg: 'bg-amber-100 text-amber-800',
+                clockBorder: 'border-amber-400',
+                hourHand: 'bg-amber-800',
+                minuteHand: 'bg-amber-600',
+                secondHand: 'bg-rose-500',
+                secondDot: 'bg-rose-500',
+                centerDot: 'bg-amber-400',
+                digitalBox: 'bg-amber-50/80 border-amber-100',
+                digitalText: 'text-amber-900',
+                dateText: 'text-amber-700/80',
+                btnBg: 'bg-amber-100 hover:bg-amber-200 text-amber-800',
+                numColor: 'text-amber-800',
+                dotColor: 'bg-amber-300',
+                noseColor: 'bg-amber-800',
+                mouthStroke: '#92400E',
+                earsSvg: `
+                    <svg viewBox="0 0 300 300" class="w-full h-full overflow-visible">
+                        <circle cx="65" cy="58" r="38" fill="#D97706"/>
+                        <circle cx="65" cy="58" r="22" fill="#FDE68A"/>
+                        <circle cx="235" cy="58" r="38" fill="#D97706"/>
+                        <circle cx="235" cy="58" r="22" fill="#FDE68A"/>
+                    </svg>
+                `
+            },
+            bunny: {
+                name: '草莓小兔',
+                bodyBg: 'bg-pink-50 text-pink-900',
+                cardBorder: 'border-pink-200',
+                badgeBg: 'bg-pink-100 text-pink-800',
+                clockBorder: 'border-pink-300',
+                hourHand: 'bg-pink-700',
+                minuteHand: 'bg-pink-500',
+                secondHand: 'bg-amber-400',
+                secondDot: 'bg-amber-400',
+                centerDot: 'bg-pink-400',
+                digitalBox: 'bg-pink-50/80 border-pink-100',
+                digitalText: 'text-pink-900',
+                dateText: 'text-pink-700/80',
+                btnBg: 'bg-pink-100 hover:bg-pink-200 text-pink-800',
+                numColor: 'text-pink-700',
+                dotColor: 'bg-pink-200',
+                noseColor: 'bg-pink-400',
+                mouthStroke: '#BE185D',
+                earsSvg: `
+                    <svg viewBox="0 0 300 300" class="w-full h-full overflow-visible">
+                        <!-- 長長的兔耳朵 -->
+                        <g transform="rotate(-14 95 65)">
+                            <ellipse cx="95" cy="15" rx="22" ry="62" fill="#F9A8D4"/>
+                            <ellipse cx="95" cy="18" rx="11" ry="45" fill="#FCE7F3"/>
+                        </g>
+                        <g transform="rotate(14 205 65)">
+                            <ellipse cx="205" cy="15" rx="22" ry="62" fill="#F9A8D4"/>
+                            <ellipse cx="205" cy="18" rx="11" ry="45" fill="#FCE7F3"/>
+                        </g>
+                    </svg>
+                `
+            },
+            cat: {
+                name: '蘇打小貓',
+                bodyBg: 'bg-sky-50 text-sky-900',
+                cardBorder: 'border-sky-200',
+                badgeBg: 'bg-sky-100 text-sky-800',
+                clockBorder: 'border-sky-400',
+                hourHand: 'bg-sky-800',
+                minuteHand: 'bg-sky-500',
+                secondHand: 'bg-amber-400',
+                secondDot: 'bg-amber-400',
+                centerDot: 'bg-sky-400',
+                digitalBox: 'bg-sky-50/80 border-sky-100',
+                digitalText: 'text-sky-900',
+                dateText: 'text-sky-700/80',
+                btnBg: 'bg-sky-100 hover:bg-sky-200 text-sky-800',
+                numColor: 'text-sky-800',
+                dotColor: 'bg-sky-200',
+                noseColor: 'bg-pink-400',
+                mouthStroke: '#0369A1',
+                earsSvg: `
+                    <svg viewBox="0 0 300 300" class="w-full h-full overflow-visible">
+                        <!-- 尖尖的貓耳朵 -->
+                        <polygon points="45,85 60,12 115,52" fill="#38BDF8" stroke="#38BDF8" stroke-width="10" stroke-linejoin="round"/>
+                        <polygon points="58,72 67,26 102,52" fill="#BAE6FD" stroke="#BAE6FD" stroke-width="4" stroke-linejoin="round"/>
+                        
+                        <polygon points="255,85 240,12 185,52" fill="#38BDF8" stroke="#38BDF8" stroke-width="10" stroke-linejoin="round"/>
+                        <polygon points="242,72 233,26 198,52" fill="#BAE6FD" stroke="#BAE6FD" stroke-width="4" stroke-linejoin="round"/>
+                    </svg>
+                `
+            }
+        };
+
+        // ==========================================
+        // 2. 音效引擎初始化 (Tone.js)
+        // ==========================================
+        function initAudio() {
+            if (!tickSynth && typeof Tone !== 'undefined') {
+                // 輕柔可愛的木魚/水滴滴答聲
+                tickSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.02,
+                    octaves: 2,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 }
+                }).toDestination();
+                tickSynth.volume.value = -16;
+
+                // 切換主題時的可愛泡泡音效
+                popSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                popSynth.volume.value = -10;
+            }
+        }
+
+        function playPopSound(note = 'C6') {
+            if (!isSoundOn) return;
+            try {
+                initAudio();
+                if (popSynth) {
+                    popSynth.triggerAttackRelease(note, '32n');
+                }
+            } catch (e) {
+                console.warn('音效播放略過:', e);
+            }
+        }
+
+        function playTickSound(isEven) {
+            if (!isSoundOn) return;
+            try {
+                initAudio();
+                if (tickSynth) {
+                    // 奇偶秒數高低音微調，模擬真實可愛滴答聲
+                    tickSynth.triggerAttackRelease(isEven ? 'G5' : 'E5', '64n');
+                }
+            } catch (e) {
+                console.warn('滴答聲播放略過:', e);
+            }
+        }
+
+        // ==========================================
+        // 3. 繪製錶盤刻度與數字
+        // ==========================================
+        function renderClockMarkings() {
+            const container = document.getElementById('clock-markings');
+            const theme = themes[currentTheme];
+            container.innerHTML = '';
+
+            for (let i = 1; i <= 12; i++) {
+                const angle = i * 30; // 每小時 30 度
+                const wrapper = document.createElement('div');
+                wrapper.className = 'absolute inset-0 flex justify-center pt-2.5 sm:pt-3';
+                wrapper.style.transform = `rotate(${angle}deg)`;
+
+                // 12, 3, 6, 9 顯示可愛圓潤數字，其餘顯示小圓點刻度
+                if (i % 3 === 0) {
+                    const num = document.createElement('span');
+                    num.textContent = i;
+                    num.className = `font-num font-bold text-lg sm:text-xl ${theme.numColor} transition-colors duration-500`;
+                    // 將數字反向旋轉回來保持水平正向
+                    num.style.transform = `rotate(-${angle}deg)`;
+                    wrapper.appendChild(num);
+                } else {
+                    const dot = document.createElement('div');
+                    dot.className = `w-2 h-2 rounded-full mt-1.5 ${theme.dotColor} transition-colors duration-500`;
+                    wrapper.appendChild(dot);
+                }
+
+                container.appendChild(wrapper);
+            }
+        }
+
+        // ==========================================
+        // 4. 更新時間與指針邏輯
+        // ==========================================
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+
+            // 播放每秒滴答聲
+            if (seconds !== lastSecond) {
+                lastSecond = seconds;
+                playTickSound(seconds % 2 === 0);
+            }
+
+            // 計算指針平滑角度
+            const secondDeg = (seconds + milliseconds / 1000) * 6;
+            const minuteDeg = (minutes + seconds / 60) * 6;
+            const hourDeg = ((hours % 12) + minutes / 60) * 30;
+
+            document.getElementById('second-hand').style.transform = `translateX(-50%) rotate(${secondDeg}deg)`;
+            document.getElementById('minute-hand').style.transform = `translateX(-50%) rotate(${minuteDeg}deg)`;
+            document.getElementById('hour-hand').style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+
+            // 更新數位時間
+            let displayHours = hours;
+            const ampmLabel = document.getElementById('ampm-label');
+
+            if (!is24Hour) {
+                ampmLabel.classList.remove('hidden');
+                ampmLabel.textContent = hours >= 12 ? 'PM' : 'AM';
+                displayHours = hours % 12;
+                if (displayHours === 0) displayHours = 12;
+            } else {
+                ampmLabel.classList.add('hidden');
+            }
+
+            const strH = String(displayHours).padStart(2, '0');
+            const strM = String(minutes).padStart(2, '0');
+            const strS = String(seconds).padStart(2, '0');
+            document.getElementById('digital-time').textContent = `${strH}:${strM}:${strS}`;
+
+            // 更新日期與星期
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const dayName = weekDays[now.getDay()];
+            document.getElementById('date-display').textContent = `${year}年 ${month}月 ${date}日 ${dayName}`;
+
+            // 根據時段更新可愛問候語
+            updateGreeting(hours);
+
+            requestAnimationFrame(updateClock);
+        }
+
+        function updateGreeting(hours) {
+            const iconEl = document.getElementById('greeting-icon');
+            const textEl = document.getElementById('greeting-text');
+
+            if (hours >= 5 && hours < 11) {
+                iconEl.textContent = '🌅';
+                textEl.textContent = '早安呀！充滿活力的一天';
+            } else if (hours >= 11 && hours < 14) {
+                iconEl.textContent = '🍱';
+                textEl.textContent = '午安！記得吃午餐休息一下';
+            } else if (hours >= 14 && hours < 18) {
+                iconEl.textContent = '🍰';
+                textEl.textContent = '下午茶時間到囉～';
+            } else if (hours >= 18 && hours < 22) {
+                iconEl.textContent = '🌙';
+                textEl.textContent = '晚安！辛苦了一整天';
+            } else {
+                iconEl.textContent = '💤';
+                textEl.textContent = '夜深了，早點睡覺作好夢';
+            }
+        }
+
+        // ==========================================
+        // 5. 切換動物主題邏輯
+        // ==========================================
+        function applyTheme(themeKey) {
+            currentTheme = themeKey;
+            const t = themes[themeKey];
+
+            // 更新背景與文字色
+            const body = document.getElementById('app-body');
+            body.className = `min-h-screen w-full flex flex-col items-center justify-center p-4 transition-colors duration-700 select-none overflow-x-hidden ${t.bodyBg}`;
+
+            // 更新卡片邊框
+            const card = document.getElementById('main-card');
+            card.className = `relative z-10 w-full max-w-md bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center border-4 transition-colors duration-500 ${t.cardBorder}`;
+
+            // 更新問候標籤與音效按鈕
+            document.getElementById('greeting-badge').className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-colors duration-500 ${t.badgeBg}`;
+            document.getElementById('sound-toggle').className = `p-2.5 rounded-full transition-all duration-300 active:scale-90 shadow-sm ${t.btnBg}`;
+            document.getElementById('format-toggle').className = `px-4 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 active:scale-95 shadow-sm ${t.btnBg}`;
+
+            // 更新耳朵 SVG
+            document.getElementById('ears-container').innerHTML = t.earsSvg;
+
+            // 更新錶盤與指針顏色
+            document.getElementById('clock-face').className = `relative w-full h-full rounded-full bg-white border-[10px] shadow-inner flex items-center justify-center transition-colors duration-500 ${t.clockBorder}`;
+            document.getElementById('hour-hand').className = `absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-2.5 h-16 sm:h-20 rounded-full shadow-sm transition-colors duration-500 z-10 ${t.hourHand}`;
+            document.getElementById('minute-hand').className = `absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-2 h-24 sm:h-28 rounded-full shadow-sm transition-colors duration-500 z-20 ${t.minuteHand}`;
+            
+            const secHand = document.getElementById('second-hand');
+            secHand.className = `absolute bottom-1/2 left-1/2 -translate-x-1/2 origin-bottom w-1 h-28 sm:h-32 rounded-full z-30 ${t.secondHand}`;
+            secHand.firstElementChild.className = `absolute -bottom-3 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full ${t.secondDot}`;
+
+            document.getElementById('center-dot').className = `absolute w-4 h-4 rounded-full border-2 border-white shadow z-40 transition-colors duration-500 ${t.centerDot}`;
+
+            // 更新小鼻子與微笑線條
+            document.getElementById('cute-nose').className = `w-3.5 h-2.5 rounded-full transition-colors duration-500 ${t.noseColor}`;
+            document.getElementById('cute-mouth').setAttribute('stroke', t.mouthStroke);
+
+            // 更新數位時間框
+            document.getElementById('digital-box').className = `w-full flex flex-col items-center rounded-3xl p-4 mb-5 border-2 transition-colors duration-500 ${t.digitalBox}`;
+            document.getElementById('digital-time').className = `font-num text-4xl sm:text-5xl font-bold tracking-wider transition-colors duration-500 ${t.digitalText}`;
+            document.getElementById('date-display').className = `mt-1.5 text-sm sm:text-base font-bold transition-colors duration-500 ${t.dateText}`;
+            document.getElementById('ampm-label').className = `text-sm font-bold px-2 py-0.5 rounded-lg ${t.badgeBg} ${is24Hour ? 'hidden' : ''}`;
+
+            // 更新主題按鈕選中狀態
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                if (btn.dataset.theme === themeKey) {
+                    btn.className = `theme-btn px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-all duration-300 bg-white shadow-sm scale-105 ${t.digitalText}`;
+                } else {
+                    btn.className = 'theme-btn px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-all duration-300 text-gray-500 hover:text-gray-800';
+                }
+            });
+
+            // 重新繪製刻度數字顏色
+            renderClockMarkings();
+        }
+
+        // ==========================================
+        // 6. 提示訊息氣泡 (替代 alert)
+        // ==========================================
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-4');
+            }, 2000);
+        }
+
+        // ==========================================
+        // 7. 事件監聽器綁定
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            // 初始化主題與刻度
+            applyTheme('bear');
+            requestAnimationFrame(updateClock);
+
+            // 主題切換按鈕
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const selected = btn.dataset.theme;
+                    if (selected !== currentTheme) {
+                        applyTheme(selected);
+                        playPopSound('E6');
+                        showToast(`已切換為「${themes[selected].name}」主題 ✨`);
+                    }
+                });
+            });
+
+            // 12 / 24 小時制切換
+            const formatBtn = document.getElementById('format-toggle');
+            formatBtn.addEventListener('click', () => {
+                is24Hour = !is24Hour;
+                formatBtn.textContent = is24Hour ? '24小時制' : '12小時制';
+                playPopSound('C6');
+                showToast(`已切換為 ${is24Hour ? '24 小時制' : '12 小時制'}`);
+            });
+
+            // 音效開關
+            const soundBtn = document.getElementById('sound-toggle');
+            soundBtn.addEventListener('click', async () => {
+                isSoundOn = !isSoundOn;
+                const iconOff = document.getElementById('icon-sound-off');
+                const iconOn = document.getElementById('icon-sound-on');
+
+                if (isSoundOn) {
+                    if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
+                        await Tone.start();
+                    }
+                    iconOff.classList.add('hidden');
+                    iconOn.classList.remove('hidden');
+                    playPopSound('G6');
+                    showToast('已開啟可愛滴答音效 ♪');
+                } else {
+                    iconOn.classList.add('hidden');
+                    iconOff.classList.remove('hidden');
+                    showToast('已靜音 🔇');
+                }
+            });
+
+            // 點擊時鐘臉龐的可愛互動彩蛋 (Q彈縮放 + 眨眼表情變化)
+            const clockContainer = document.getElementById('clock-container');
+            const cuteFace = document.getElementById('cute-face');
+            clockContainer.addEventListener('click', () => {
+                clockContainer.classList.add('scale-95');
+                cuteFace.classList.add('scale-125');
+                playPopSound('A6');
+                setTimeout(() => {
+                    clockContainer.classList.remove('scale-95');
+                    cuteFace.classList.remove('scale-125');
+                }, 180);
+            });
+        });
+    </script>
+</body>
+</html>
